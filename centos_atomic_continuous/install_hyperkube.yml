@@ -1,0 +1,71 @@
+- hosts: master
+  vars:
+    kube_version: v1.4.1
+    master_ip: 192.168.1.101
+  tasks:
+    - name: start kubernetes master
+      command: |
+        docker run -d \
+        --net=host \
+        --pid=host \
+        --privileged \
+        --restart="unless-stopped" \
+        --name kube_kubelet_1 \
+        -v /sys:/sys:rw \
+        -v /var/run:/var/run:rw \
+        -v /run:/run:rw \
+        -v /var/lib/docker:/var/lib/docker:rw \
+        -v /var/lib/kubelet:/var/lib/kubelet:shared \
+        -v /var/log/containers:/var/log/containers:rw \
+        gcr.io/google_containers/hyperkube-amd64:{{ kube_version }} \
+        /hyperkube kubelet \
+          --allow-privileged \
+          --api-servers=http://localhost:8080 \
+          --config=/etc/kubernetes/manifests-multi \
+          --cluster-dns=10.0.0.10 \
+          --cluster-domain=cluster.local \
+          --hostname-override={{ master_ip }} \
+          --v=2
+    - name: install kubectl
+      command: |
+        curl -sSL https://storage.googleapis.com/kubernetes-release/release/{{ kube_version }}/bin/linux/amd64/kubectl > /usr/local/bin/kubectl \
+        && chmod +x /usr/local/bin/kubectl
+
+- hosts: nodes
+  vars:
+    master_ip: 192.168.1.101
+    kube_version: v1.4.1
+  tasks:
+    - name: start kubelet on nodes
+      command: |
+        docker run -d \
+        --net=host \
+        --pid=host \
+        --privileged \
+        --restart="unless-stopped" \
+        --name kube_kubelet_1 \
+        -v /sys:/sys:rw \
+        -v /var/run:/var/run:rw \
+        -v /run:/run:rw \
+        -v /var/lib/docker:/var/lib/docker:rw \
+        -v /var/lib/kubelet:/var/lib/kubelet:shared \
+        -v /var/log/containers:/var/log/containers:rw \
+        gcr.io/google_containers/hyperkube-amd64:{{ kube_version }} \
+        /hyperkube kubelet \
+          --allow-privileged \
+          --api-servers=http://{{ master_ip }}:8080 \
+          --cluster-dns=10.0.0.10 \
+          --cluster-domain=cluster.local \
+          --hostname-override={{ inventory_hostname }} \
+          --v=2
+    - name: start proxy on nodes
+      command: |
+        docker run -d \
+        --net=host \
+        --privileged \
+        --name kube_proxy_1 \
+        --restart="unless-stopped" \
+        gcr.io/google_containers/hyperkube-amd64:{{ kube_version }} \
+        /hyperkube proxy \
+            --master=http://{{ master_ip }}:8080 \
+            --v=2

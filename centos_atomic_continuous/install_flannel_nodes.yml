@@ -1,0 +1,18 @@
+- hosts: nodes
+  serial: 1
+  vars:
+    flannel_container: "gscrivano/flannel"
+    flannel_net: "172.17.0.0/16"
+    master_ip: 192.168.1.101
+  tasks:
+    - name: pull flannel image
+      docker_image:
+        name: gscrivano/flannel
+    - name: install flannel container
+      command: "atomic install --system --set FLANNELD_ETCD_ENDPOINTS=http://{{ master_ip }}:2379 {{ flannel_container }}"
+    - name: enable flannel
+      command: systemctl enable flannel
+    - name: start flannel
+      command: systemctl start flannel
+    - name: run docker tweaks
+      script: docker_tweak.sh

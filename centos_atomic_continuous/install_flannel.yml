@@ -1,0 +1,23 @@
+- hosts: master
+  vars:
+    etcd_container: "gscrivano/etcd"
+    flannel_container: "gscrivano/flannel"
+    flannel_net: "172.17.0.0/16"
+    master_ip: 192.168.1.101
+  tasks:
+    - name: install etcd
+      command: atomic install --system {{ etcd_container}}
+    - name: enable etcd
+      command: systemctl enable etcd
+    - name: start etcd
+      command: systemctl start etcd
+    - name: config flannel network
+      command: "runc exec etcd etcdctl set /atomic.io/network/config '{\"Network\":\"{{ flannel_net }}\"}'"
+    - name: install flannel container
+      command: atomic install --system {{ flannel_container }}
+    - name: enable flannel
+      command: systemctl enable flannel
+    - name: start flannel
+      command: systemctl start flannel
+    - name: run docker tweaks
+      script: docker_tweak.sh
