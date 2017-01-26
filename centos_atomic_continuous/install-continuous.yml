@@ -1,4 +1,4 @@
-- hosts: nodes
+- hosts: 192.168.1.104
   vars:
     continuous_repo: "https://ci.centos.org/artifacts/sig-atomic/rdgo/centos-continuous/ostree/repo/"
     continuous_version: "centos-atomic-host/7/x86_64/devel/continuous"
@@ -16,3 +16,4 @@
     - name: reboot system
       become: yes
       command: "systemctl reboot"
+      ignore_errors: yes

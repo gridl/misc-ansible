@@ -24,7 +24,7 @@
           --config=/etc/kubernetes/manifests-multi \
           --cluster-dns=10.0.0.10 \
           --cluster-domain=cluster.local \
-          --hostname-override={{ master_ip }} \
+          --hostname-override=node1 \
           --v=2
     - name: install kubectl
       command: |
@@ -32,6 +32,7 @@
         && chmod +x /usr/local/bin/kubectl
 
 - hosts: nodes
+  serial: 1
   vars:
     master_ip: 192.168.1.101
     kube_version: v1.4.1

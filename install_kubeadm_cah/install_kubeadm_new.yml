@@ -1,0 +1,57 @@
+- hosts: master
+  serial: 1
+  vars:
+    kube_token: 6477b6.eb8f9da2d2b85b73
+  tasks:
+    - name: copy repo file
+      copy:
+        src: "jasonbrooks.repo"
+        dest: "/etc/yum.repos.d/jasonbrooks-kube-release-epel-7.repo"
+    - name: install rpm overlay
+      command: rpm-ostree pkg-add kubelet kubeadm kubectl kubernetes-cni
+    - name: restart server
+      command: /sbin/shutdown -r +1
+      async: 0
+      poll: 0
+      ignore_errors: true
+    - name: wait for server to come back up
+      local_action: wait_for host={{ inventory_hostname }} state=started delay=30 timeout=300
+      become: false
+    - name: enable kubelet
+      command: systemctl enable kubelet && systemctl start kubelet
+      become: true
+    - name: fix perms
+      command: chcon -Rt svirt_sandbox_file_t /var/lib/kubelet
+    - name: init cluster
+      command: kubeadm init --token {{ kube_token }} --skip-preflight-checks
+    - name: taint nodes
+      command: "kubectl taint nodes --all dedicated-"
+      ignore_errors: true
+    - name: install weave
+      command: kubectl apply -f https://git.io/weave-kube
+
+- hosts: nodes
+  vars:
+    master_ip: host_vars[groups['masters'][0]]['hostname']
+    kube_token: 6477b6.eb8f9da2d2b85b73
+  tasks:
+    - name: copy repo file
+      copy:
+        src: "jasonbrooks.repo"
+        dest: "/etc/yum.repos.d/jasonbrooks-kube-release-epel-7.repo"
+    - name: install rpm overlay
+      command: rpm-ostree pkg-add kubelet kubeadm kubectl kubernetes-cni
+    - name: restart server
+      command: /sbin/shutdown -r +1
+      async: 0
+      poll: 0
+      ignore_errors: true
+    - name: wait for server to come back up
+      local_action: wait_for host={{ inventory_hostname }} state=started delay=30 timeout=300
+      become: false
+    - name: enable kubelet
+      command: systemctl enable kubelet
+    - name: start kubeklet
+      command: systemctl start kubelet
+    - name: join cluster
+      command: "kubeadm join --token {{ kube_token }} {{ master_ip }}"
